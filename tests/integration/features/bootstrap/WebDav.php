@@ -75,7 +75,12 @@ trait WebDav {
 			$options['auth'] = [$user, $this->regularUser];
 		}
 
-		$request = new Request($method, $fullUrl, $headers, $requestBody);
+		// FIXME: why $body AND $requestBody ??
+		if ($body === null) {
+			$body = $requestBody;
+		}
+
+		$request = new Request($method, $fullUrl, $headers, $body);
 		return $client->send($request, $options);
 	}
 
@@ -474,7 +479,7 @@ trait WebDav {
 		$body .= '
 					</oc:filter-files>';
 
-		$response = $client->request('REPORT', $this->makeSabrePath($user, $path), [], $body);
+		$response = $client->request('REPORT', $this->makeSabrePath($user, $path), $body, []);
 		$parsedResponse = $client->parseMultistatus($response['body']);
 		return $parsedResponse;
 	}
@@ -494,7 +499,7 @@ trait WebDav {
 							 </oc:filter-comments>';
 
 
-		$response = $client->request('REPORT', $this->makeSabrePathNotForFiles($path), [], $body);
+		$response = $client->request('REPORT', $this->makeSabrePathNotForFiles($path), $body, []);
 
 		$parsedResponse = $client->parseMultistatus($response['body']);
 		return $parsedResponse;
@@ -553,7 +558,7 @@ trait WebDav {
 	 */
 	public function userUploadsAFileTo($user, $source, $destination)
 	{
-		$file = \GuzzleHttp\Stream\Stream::factory(fopen($source, 'r'));
+		$file = fopen($source, 'r');
 		try {
 			$this->response = $this->makeDavRequest($user, "PUT", $destination, [], $file);
 		} catch (\GuzzleHttp\Exception\BadResponseException $e) {
@@ -583,9 +588,8 @@ trait WebDav {
 	 */
 	public function userUploadsAFileWithContentTo($user, $content, $destination)
 	{
-		$file = \GuzzleHttp\Stream\Stream::factory($content);
 		try {
-			$this->response = $this->makeDavRequest($user, "PUT", $destination, [], $file);
+			$this->response = $this->makeDavRequest($user, "PUT", $destination, [], $content);
 		} catch (\GuzzleHttp\Exception\ServerException $e) {
 			// 4xx and 5xx responses cause an exception
 			$this->response = $e->getResponse();
@@ -602,14 +606,13 @@ trait WebDav {
 	 */
 	public function userUploadsAFileWithChecksumAndContentTo($user, $checksum, $content, $destination)
 	{
-		$file = \GuzzleHttp\Stream\Stream::factory($content);
 		try {
 			$this->response = $this->makeDavRequest(
 				$user,
 				"PUT",
 				$destination,
 				['OC-Checksum' => $checksum],
-				$file
+				$content
 			);
 		} catch (\GuzzleHttp\Exception\BadResponseException $e) {
 			// 4xx and 5xx responses cause an exception
@@ -673,7 +676,6 @@ trait WebDav {
 	public function userUploadsChunkedFile($user, $num, $total, $data, $destination)
 	{
 		$num -= 1;
-		$data = \GuzzleHttp\Stream\Stream::factory($data);
 		$file = $destination . '-chunking-42-' . $total . '-' . $num;
 		$this->makeDavRequest($user, 'PUT', $file, ['OC-Chunked' => '1'], $data,  "uploads");
 	}
@@ -692,7 +694,6 @@ trait WebDav {
 	 */
 	public function userUploadsNewChunkFileOfWithToId($user, $num, $data, $id)
 	{
-		$data = \GuzzleHttp\Stream\Stream::factory($data);
 		$destination = '/uploads/'. $user .'/'. $id .'/' . $num;
 		$this->makeDavRequest($user, 'PUT', $destination, [], $data, "uploads");
 	}
@@ -703,7 +704,6 @@ trait WebDav {
 	public function userUploadsNewChunkFileOfWithToIdWithChecksum($user, $num, $data, $id, $checksum)
 	{
 		try {
-			$data = \GuzzleHttp\Stream\Stream::factory($data);
 			$destination = '/uploads/' . $user . '/' . $id . '/' . $num;
 			$this->makeDavRequest(
 				$user,

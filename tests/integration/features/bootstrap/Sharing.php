@@ -235,10 +235,11 @@ trait Sharing {
 				$dateModification = $fd['expireDate'];
 				$fd['expireDate'] = date('Y-m-d', strtotime($dateModification));
 			}
+			$options['form_params'] = $fd;
 		}
 
 		try {
-			$this->response = $client->send(new Request("PUT", $fullUrl, [], $fd), $options);
+			$this->response = $client->send(new Request("PUT", $fullUrl), $options);
 		} catch (\GuzzleHttp\Exception\ClientException $ex) {
 			$this->response = $ex->getResponse();
 		}

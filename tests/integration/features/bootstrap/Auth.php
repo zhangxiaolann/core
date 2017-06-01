@@ -28,18 +28,16 @@ trait Auth {
 		$options = [];
 		try {
 			if ($useCookies) {
-				$request = new Request($method, $fullUrl);
 				$options = [
 				    'cookies' => $this->cookieJar,
 				];
-			} else {
-				$request = new Request($method, $fullUrl);
 			}
 			if ($authHeader) {
-				$request->setHeader('Authorization', $authHeader);
+				$headers['Authorization'] = $authHeader;
 			}
-			$request->setHeader('OCS_APIREQUEST', 'true');
-			$request->setHeader('requesttoken', $this->requestToken);
+			$headers['OCS_APIREQUEST'] = 'true';
+			$headers['requesttoken'] = $this->requestToken;
+			$request = new Request($method, $fullUrl, $headers);
 			$this->response = $this->client->send($request, $options);
 		} catch (ClientException $ex) {
 			$this->response = $ex->getResponse();

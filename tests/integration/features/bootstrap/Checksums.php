@@ -29,7 +29,7 @@ trait Checksums {
 	 * @param string $checksum
 	 */
 	public function userUploadsFileToWithChecksum($user, $source, $destination, $checksum) {
-		$file = \GuzzleHttp\Stream\Stream::factory(fopen($source, 'r'));
+		$file = file_get_contents($source);
 		$this->response = $this->makeDavRequest($user,
 							  'PUT',
 							  $destination,
@@ -104,7 +104,7 @@ trait Checksums {
 	 */
 	public function theHeaderChecksumShouldMatch($checksum)
 	{
-		if ($this->response->getHeader('OC-Checksum') !== $checksum) {
+		if ($this->response->getHeader('OC-Checksum')[0] !== $checksum) {
 			throw new \Exception("Expected $checksum, got ".$this->response->getHeader('OC-Checksum'));
 		}
 	}
@@ -171,7 +171,6 @@ trait Checksums {
 	 */
 	public function userUploadsChunkFileOfWithToWithChecksum($user, $num, $total, $data, $destination, $checksum) {
 		$num -= 1;
-		$data = \GuzzleHttp\Stream\Stream::factory($data);
 		$file = $destination . '-chunking-42-' . $total . '-' . $num;
 		$this->response = $this->makeDavRequest($user,
 							  'PUT',
