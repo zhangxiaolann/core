@@ -62,6 +62,7 @@ class Client implements IClient {
 			return;
 		}
 		$this->configured = true;
+		// FIXME: migrate setDefaultOption
 		// Either use user bundle or the system bundle if nothing is specified
 		if ($this->certificateManager->listCertificates() !== []) {
 			$this->client->setDefaultOption('verify', $this->certificateManager->getAbsoluteBundlePath());
