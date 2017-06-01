@@ -222,7 +222,7 @@ trait WebDav {
 			$headerName = $header[0];
 			$expectedHeaderValue = $header[1];
 			$returnedHeader = $this->response->getHeader($headerName);
-			if($returnedHeader !== $expectedHeaderValue) {
+			if(count($returnedHeader) == 0 || $returnedHeader[0] !== $expectedHeaderValue) {
 				throw new \Exception(
 					sprintf(
 						"Expected value '%s' for header '%s', got '%s'",

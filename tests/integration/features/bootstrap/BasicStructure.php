@@ -124,6 +124,8 @@ trait BasicStructure {
 		if ($response === null) {
 			$response = $this->response;
 		}
+		// rewind just to make sure we can re-parse it in case it was parsed already...
+		$response->getBody()->rewind();
 		return new SimpleXMLElement($response->getBody()->getContents());
 	}
 
