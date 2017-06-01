@@ -3,7 +3,7 @@
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Message\ResponseInterface;
+use GuzzleHttp\Psr7\Request;
 
 trait Checksums {
 
@@ -56,23 +56,24 @@ trait Checksums {
 	 */
 	public function userRequestTheChecksumOfViaPropfind($user, $path) {
 		$client = new Client();
-		$request = $client->createRequest(
+		$options = [
+			'auth' => [
+				$user,
+				$this->getPasswordForUser($user),
+			]
+		];
+		$request = new Request(
 			'PROPFIND',
 			substr($this->baseUrl, 0, -4) . $this->getDavFilesPath($user) . $path,
-			[
-				'body' => '<?xml version="1.0"?>
+			[],
+			'<?xml version="1.0"?>
 <d:propfind  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
   <d:prop>
     <oc:checksums />
   </d:prop>
-</d:propfind>',
-				'auth' => [
-					$user,
-					$this->getPasswordForUser($user),
-				]
-			]
+</d:propfind>'
 		);
-		$this->response = $client->send($request);
+		$this->response = $client->send($request, $options);
 	}
 
 	/**
@@ -116,20 +117,18 @@ trait Checksums {
 	 */
 	public function userCopiedFileTo($user, $source, $destination) {
 		$client = new Client();
-		$request = $client->createRequest(
+		$options = [
+			'auth' => [
+				$user,
+				$this->getPasswordForUser($user),
+			],
+		];
+		$request = new Request(
 			'COPY',
 			substr($this->baseUrl, 0, -4) . $this->davPath . $source,
-			[
-				'auth' => [
-					$user,
-					$this->getPasswordForUser($user),
-				],
-				'headers' => [
-					'Destination' => substr($this->baseUrl, 0, -4) . $this->davPath . $destination,
-				],
-			]
+			['Destination' => substr($this->baseUrl, 0, -4) . $this->davPath . $destination]
 		);
-		$this->response = $client->send($request);
+		$this->response = $client->send($request, $options);
 	}
 
 	/**

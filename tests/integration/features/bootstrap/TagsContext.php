@@ -23,7 +23,8 @@ require __DIR__ . '/../../../../lib/composer/autoload.php';
 
 use Behat\Gherkin\Node\TableNode;
 use GuzzleHttp\Client;
-use GuzzleHttp\Message\ResponseInterface;
+use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Psr7\Request;
 
 class TagsContext implements \Behat\Behat\Context\Context {
 	/** @var string  */
@@ -205,21 +206,19 @@ class TagsContext implements \Behat\Behat\Context\Context {
 			$body .= '
   </d:prop>
 </d:propfind>';
-			$request = $this->client->createRequest(
+			$request = new Request(
 				'PROPFIND',
 				$this->baseUrl . '/remote.php/dav/systemtags/',
-				[
-					'body' => $body,
-					'auth' => [
-						$user,
-						$this->getPasswordForUser($user),
-					],
-					'headers' => [
-						'Content-Type' => 'application/json',
-					],
-				]
+				[],
+				$body
 			);
-			$this->response = $this->client->send($request);
+			$options = [
+				'auth' => [
+					$user,
+					$this->getPasswordForUser($user),
+				],
+			];
+			$this->response = $this->client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
@@ -400,25 +399,26 @@ class TagsContext implements \Behat\Behat\Context\Context {
 		}
 
 		try {
-			$request = $this->client->createRequest(
+			$request = new Request(
 				'PROPPATCH',
 				$this->baseUrl . '/remote.php/dav/systemtags/' . $tagId,
-				[
-					'body' => '<?xml version="1.0"?>
+				[],
+				'<?xml version="1.0"?>
 <d:propertyupdate  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
   <d:set>
    <d:prop>
       <oc:display-name>' . $newName . '</oc:display-name>
     </d:prop>
   </d:set>
-</d:propertyupdate>',
-					'auth' => [
-						$user,
-						$this->getPasswordForUser($user),
-					],
-				]
+</d:propertyupdate>'
 			);
-			$this->response = $this->client->send($request);
+			$options = [
+				'auth' => [
+					$user,
+					$this->getPasswordForUser($user),
+				],
+			];
+			$this->response = $this->client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
@@ -438,25 +438,26 @@ class TagsContext implements \Behat\Behat\Context\Context {
 		}
 
 		try {
-			$request = $this->client->createRequest(
+			$request = new Request(
 				'PROPPATCH',
 				$this->baseUrl . '/remote.php/dav/systemtags/' . $tagId,
-				[
-					'body' => '<?xml version="1.0"?>
+				[],
+				'<?xml version="1.0"?>
 <d:propertyupdate  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
   <d:set>
    <d:prop>
       <oc:groups>' . $groups . '</oc:groups>
     </d:prop>
   </d:set>
-</d:propertyupdate>',
-					'auth' => [
-						$user,
-						$this->getPasswordForUser($user),
-					],
-				]
+</d:propertyupdate>'
 			);
-			$this->response = $this->client->send($request);
+			$options = [
+				'auth' => [
+					$user,
+					$this->getPasswordForUser($user),
+				],
+			];
+			$this->response = $this->client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
@@ -553,15 +554,11 @@ class TagsContext implements \Behat\Behat\Context\Context {
 		}
 
 		// Get the real tags
-		$request = $this->client->createRequest(
+		$request = new Request(
 			'PROPFIND',
 			$this->baseUrl.'/remote.php/dav/systemtags-relations/files/'.$this->getFileIdForPath($fileName, $sharingUser),
-			[
-				'auth' => [
-					$sharingUser,
-					$this->getPasswordForUser($sharingUser),
-				],
-				'body' => '<?xml version="1.0"?>
+			[],
+			'<?xml version="1.0"?>
 <d:propfind  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
   <d:prop>
     <oc:id />
@@ -569,11 +566,16 @@ class TagsContext implements \Behat\Behat\Context\Context {
     <oc:user-visible />
     <oc:user-assignable />
   </d:prop>
-</d:propfind>',
-			]
+</d:propfind>'
 		);
+		$options = [
+			'auth' => [
+				$sharingUser,
+				$this->getPasswordForUser($sharingUser),
+			],
+		];
 
-		$response = $this->client->send($request)->getBody()->getContents();
+		$response = $this->client->send($request, $options)->getBody()->getContents();
 
 		preg_match_all('/\<oc:display-name\>(.*)\<\/oc:display-name\>/', $response, $realTags);
 
@@ -607,15 +609,11 @@ class TagsContext implements \Behat\Behat\Context\Context {
 
 		// Get the real tags
 		try {
-			$request = $this->client->createRequest(
+			$request = new Request(
 				'PROPFIND',
 				$this->baseUrl . '/remote.php/dav/systemtags-relations/files/' . $this->getFileIdForPath($fileName, $sharingUser),
-				[
-					'auth' => [
-						$user,
-						$this->getPasswordForUser($user),
-					],
-					'body' => '<?xml version="1.0"?>
+				[],
+				'<?xml version="1.0"?>
 <d:propfind  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
   <d:prop>
     <oc:id />
@@ -623,10 +621,15 @@ class TagsContext implements \Behat\Behat\Context\Context {
     <oc:user-visible />
     <oc:user-assignable />
   </d:prop>
-</d:propfind>',
-				]
+</d:propfind>'
 			);
-			$this->response = $this->client->send($request)->getBody()->getContents();
+			$options = [
+				'auth' => [
+						$user,
+						$this->getPasswordForUser($user),
+				],
+			];
+			$this->response = $this->client->send($request, $options)->getBody()->getContents();
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
@@ -689,7 +692,6 @@ class TagsContext implements \Behat\Behat\Context\Context {
 		$options = [];
 		$options['auth'] = [$user, '123456'];
 		$fd = $body->getRowsHash();
-		$options['body'] = $fd;
-		$client->send($client->createRequest($verb, $this->baseUrl.'/ocs/v1.php/'.$url, $options));
+		$client->send(new Request($verb, $this->baseUrl.'/ocs/v1.php/'.$url, [], $fd), $options);
 	}
 }

@@ -1,9 +1,10 @@
 <?php
 
 use GuzzleHttp\Client as GClient;
-use GuzzleHttp\Message\ResponseInterface;
 use Sabre\DAV\Client as SClient;
 use Sabre\DAV\Xml\Property\ResourceType;
+use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Psr7\Request;
 
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
@@ -68,27 +69,14 @@ trait WebDav {
 		$client = new GClient();
 
 		$options = [];
-		if (!is_null($requestBody)){
-			$options['body'] = $requestBody;
-		}
 		if ($user === 'admin') {
 			$options['auth'] = $this->adminUser;
 		} else {
 			$options['auth'] = [$user, $this->regularUser];
 		}
 
-		$request = $client->createRequest($method, $fullUrl, $options);
-		if (!is_null($headers)){
-			foreach ($headers as $key => $value) {
-				$request->addHeader($key, $value);
-			}
-		}
-
-		if (!is_null($body)) {
-			$request->setBody($body);
-		}
-
-		return $client->send($request);
+		$request = new Request($method, $fullUrl, $headers, $requestBody);
+		return $client->send($request, $options);
 	}
 
 	/**
@@ -158,10 +146,9 @@ trait WebDav {
 		$options = [];
 		$options['auth'] = [$token, ""];
 
-		$request = $client->createRequest("GET", $fullUrl, $options);
-		$request->addHeader('Range', $range);
+		$request = new Request("GET", $fullUrl, ['Range' => $range]);
 
-		$this->response = $client->send($request);
+		$this->response = $client->send($request, $options);
 	}
 
 	/**
@@ -176,10 +163,9 @@ trait WebDav {
 		$options = [];
 		$options['auth'] = [$token, ""];
 
-		$request = $client->createRequest("GET", $fullUrl, $options);
-		$request->addHeader('Range', $range);
+		$request = new Request("GET", $fullUrl, ['Range' => $range]);
 
-		$this->response = $client->send($request);
+		$this->response = $client->send($request, $options);
 	}
 
 	/**
@@ -488,7 +474,7 @@ trait WebDav {
 		$body .= '
 					</oc:filter-files>';
 
-		$response = $client->request('REPORT', $this->makeSabrePath($user, $path), $body);
+		$response = $client->request('REPORT', $this->makeSabrePath($user, $path), [], $body);
 		$parsedResponse = $client->parseMultistatus($response['body']);
 		return $parsedResponse;
 	}
@@ -508,7 +494,7 @@ trait WebDav {
 							 </oc:filter-comments>';
 
 
-		$response = $client->request('REPORT', $this->makeSabrePathNotForFiles($path), $body);
+		$response = $client->request('REPORT', $this->makeSabrePathNotForFiles($path), [], $body);
 
 		$parsedResponse = $client->parseMultistatus($response['body']);
 		return $parsedResponse;
