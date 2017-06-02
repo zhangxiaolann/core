@@ -269,11 +269,14 @@ trait BasicStructure {
 		$baseUrl = substr($this->baseUrl, 0, -5);
 
 		$client = new Client();
-		$request = new Request($method, $baseUrl . $url);
+		$request = new Request(
+			$method,
+			$baseUrl . $url,
+			['requesttoken' => $this->requestToken]
+		);
 		$options = [
 				'cookies' => $this->cookieJar,
 		];
-		$request->addHeader('requesttoken', $this->requestToken);
 		try {
 			$this->response = $client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
@@ -290,15 +293,12 @@ trait BasicStructure {
 		$baseUrl = substr($this->baseUrl, 0, -5);
 
 		$client = new Client();
-		$request = new Request(
-			$method,
-			$baseUrl . $url,
-			[
-				'cookies' => $this->cookieJar,
-			]
-		);
+		$request = new Request($method, $baseUrl . $url);
+		$options = [
+			'cookies' => $this->cookieJar,
+		];
 		try {
-			$this->response = $client->send($request);
+			$this->response = $client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
