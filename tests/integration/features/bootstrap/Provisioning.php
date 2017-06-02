@@ -507,7 +507,7 @@ trait Provisioning {
 	 * @return array
 	 */
 	public function getArrayOfUsersResponded($resp) {
-		$listCheckedElements = $resp->getResponseXml()->data[0]->users[0]->element;
+		$listCheckedElements = $this->getResponseXml($resp)->data[0]->users[0]->element;
 		$extractedElementsArray = json_decode(json_encode($listCheckedElements), 1);
 		return $extractedElementsArray;
 	}
@@ -518,7 +518,7 @@ trait Provisioning {
 	 * @return array
 	 */
 	public function getArrayOfGroupsResponded($resp) {
-		$listCheckedElements = $this->getResponseXml()->data[0]->groups[0]->element;
+		$listCheckedElements = $this->getResponseXml($resp)->data[0]->groups[0]->element;
 		$extractedElementsArray = json_decode(json_encode($listCheckedElements), 1);
 		return $extractedElementsArray;
 	}
@@ -529,7 +529,7 @@ trait Provisioning {
 	 * @return array
 	 */
 	public function getArrayOfAppsResponded($resp) {
-		$listCheckedElements = $this->getResponseXml()->data[0]->apps[0]->element;
+		$listCheckedElements = $this->getResponseXml($resp)->data[0]->apps[0]->element;
 		$extractedElementsArray = json_decode(json_encode($listCheckedElements), 1);
 		return $extractedElementsArray;
 	}
@@ -540,7 +540,7 @@ trait Provisioning {
 	 * @return array
 	 */
 	public function getArrayOfSubadminsResponded($resp) {
-		$listCheckedElements = $this->getResponseXml()->data[0]->element;
+		$listCheckedElements = $this->getResponseXml($resp)->data[0]->element;
 		$extractedElementsArray = json_decode(json_encode($listCheckedElements), 1);
 		return $extractedElementsArray;
 	}

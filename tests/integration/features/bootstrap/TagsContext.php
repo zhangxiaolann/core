@@ -629,11 +629,13 @@ class TagsContext implements \Behat\Behat\Context\Context {
 						$this->getPasswordForUser($user),
 				],
 			];
-			$this->response = $this->client->send($request, $options)->getBody()->getContents();
+			$this->response = $this->client->send($request, $options);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
-		preg_match_all('/\<oc:display-name\>(.*?)\<\/oc:display-name\>/', $this->response, $realTags);
+
+		$contents = $this->response->getBody()->getContents();
+		preg_match_all('/\<oc:display-name\>(.*?)\<\/oc:display-name\>/', $contents, $realTags);
 
 		$realTags = array_filter($realTags);
 		$expectedTags = array_filter($expectedTags);
@@ -692,6 +694,7 @@ class TagsContext implements \Behat\Behat\Context\Context {
 		$options = [];
 		$options['auth'] = [$user, '123456'];
 		$fd = $body->getRowsHash();
-		$client->send(new Request($verb, $this->baseUrl.'/ocs/v1.php/'.$url, [], $fd), $options);
+		$options['form_params'] = $fd;
+		$client->send(new Request($verb, $this->baseUrl.'/ocs/v1.php/'.$url), $options);
 	}
 }
