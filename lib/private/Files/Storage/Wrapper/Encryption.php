@@ -378,7 +378,7 @@ class Encryption extends Wrapper {
 		$header = $this->getHeader($path);
 		$signed = (isset($header['signed']) && $header['signed'] === 'true') ? true : false;
 		$fullPath = $this->getFullPath($path);
-		$encryptionModuleId = $this->util->getEncryptionModuleId($header);
+		$encryptionModuleId = ($encryptionEnabled) ? $this->util->getEncryptionModuleId($header): "";
 
 		if ($this->util->isExcluded($fullPath) === false) {
 
@@ -672,6 +672,13 @@ class Encryption extends Wrapper {
 		// in case of a rename we need to manipulate the source cache because
 		// this information will be kept for the new target
 		if ($isRename) {
+			/*
+			 * Rename is a process of creating a new file. So the version has to be 1.
+			 * Instead of the reusing old version, we stick with version 1. This helps
+			 * the data viewed in UI and helps resolve "Bad Signature".
+			 */
+			$encryptedVersion = 1;
+			$cacheInformation['encryptedVersion'] = $encryptedVersion;
 			$sourceStorage->getCache()->put($sourceInternalPath, $cacheInformation);
 		} else {
 			$this->getCache()->put($targetInternalPath, $cacheInformation);
