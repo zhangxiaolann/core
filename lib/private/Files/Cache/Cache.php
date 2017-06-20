@@ -160,21 +160,7 @@ class Cache implements ICache {
 			$entry = false;
 			self::$metaDataCache->set($key, $entry);
 		} else {
-			//fix types
-			$data['fileid'] = (int)$data['fileid'];
-			$data['parent'] = (int)$data['parent'];
-			$data['size'] = 0 + $data['size'];
-			$data['mtime'] = (int)$data['mtime'];
-			$data['storage_mtime'] = (int)$data['storage_mtime'];
-			$data['encryptedVersion'] = (int)$data['encrypted'];
-			$data['encrypted'] = (bool)$data['encrypted'];
-			$data['storage'] = $this->storageId;
-			$data['mimetype'] = $this->mimetypeLoader->getMimetypeById($data['mimetype']);
-			$data['mimepart'] = $this->mimetypeLoader->getMimetypeById($data['mimepart']);
-			if ($data['storage_mtime'] == 0) {
-				$data['storage_mtime'] = $data['mtime'];
-			}
-			$data['permissions'] = (int)$data['permissions'];
+			$this->fixTypes($data);
 			$entry = new CacheEntry($data);
 			self::$metaDataCache->set($key, clone $entry);
 			$getIdkey = $this->getNumericStorageId().'-getId-'.$data['path'];
@@ -210,15 +196,7 @@ class Cache implements ICache {
 			$result = $this->connection->executeQuery($sql, [$fileId]);
 			$files = $result->fetchAll();
 			foreach ($files as &$file) {
-				$file['mimetype'] = $this->mimetypeLoader->getMimetypeById($file['mimetype']);
-				$file['mimepart'] = $this->mimetypeLoader->getMimetypeById($file['mimepart']);
-				if ($file['storage_mtime'] == 0) {
-					$file['storage_mtime'] = $file['mtime'];
-				}
-				$file['permissions'] = (int)$file['permissions'];
-				$file['mtime'] = (int)$file['mtime'];
-				$file['storage_mtime'] = (int)$file['storage_mtime'];
-				$file['size'] = 0 + $file['size'];
+				$this->fixTypes($file);
 			}
 			return array_map(function (array $data) {
 				$entry = new CacheEntry($data);
@@ -235,6 +213,23 @@ class Cache implements ICache {
 		} else {
 			return [];
 		}
+	}
+
+	private function fixTypes(array &$data) {
+		$data['fileid'] = 0 + $data['fileid'];
+		$data['parent'] = 0 + $data['parent'];
+		$data['size'] = 0 + $data['size'];
+		$data['mtime'] = (int)$data['mtime'];
+		$data['storage_mtime'] = (int)$data['storage_mtime'];
+		$data['encryptedVersion'] = (int)$data['encrypted'];
+		$data['encrypted'] = (bool)$data['encrypted'];
+		$data['storage'] = $this->storageId;
+		$data['mimetype'] = $this->mimetypeLoader->getMimetypeById($data['mimetype']);
+		$data['mimepart'] = $this->mimetypeLoader->getMimetypeById($data['mimepart']);
+		if ($data['storage_mtime'] == 0) {
+			$data['storage_mtime'] = $data['mtime'];
+		}
+		$data['permissions'] = (int)$data['permissions'];
 	}
 
 	/**
@@ -653,8 +648,7 @@ class Cache implements ICache {
 
 		$files = [];
 		while ($row = $result->fetch()) {
-			$row['mimetype'] = $this->mimetypeLoader->getMimetypeById($row['mimetype']);
-			$row['mimepart'] = $this->mimetypeLoader->getMimetypeById($row['mimepart']);
+			$this->fixTypes($row);
 			$files[] = $row;
 		}
 		return array_map(function(array $data) {
@@ -681,8 +675,7 @@ class Cache implements ICache {
 		$result = $this->connection->executeQuery($sql, [$mimetype, $this->getNumericStorageId()]);
 		$files = [];
 		while ($row = $result->fetch()) {
-			$row['mimetype'] = $this->mimetypeLoader->getMimetypeById($row['mimetype']);
-			$row['mimepart'] = $this->mimetypeLoader->getMimetypeById($row['mimepart']);
+			$this->fixTypes($row);
 			$files[] = $row;
 		}
 		return array_map(function (array $data) {
@@ -730,6 +723,7 @@ class Cache implements ICache {
 		);
 		$files = [];
 		while ($row = $result->fetch()) {
+			$this->fixTypes($row);
 			$files[] = $row;
 		}
 		return array_map(function (array $data) {
