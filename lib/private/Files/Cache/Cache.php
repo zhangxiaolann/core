@@ -123,11 +123,12 @@ class Cache implements ICache {
 	 */
 	public function get($file) {
 		$key = $this->getNumericStorageId().'-get-'.$file;
-		$entry = self::$metaDataCache->get($key);
-		if ($entry instanceof ICacheEntry) { // also cache false
-			return clone $entry;
-		} else if ($entry !== null) {
-			return false;
+		if (self::$metaDataCache->hasKey($key)) { // use hasKey to also cache false
+			$entry = self::$metaDataCache->get($key);
+			if ($entry instanceof ICacheEntry) {
+				$entry = clone $entry; // clone to prevent changes affecting our cached clone
+			}
+			return $entry;
 		}
 
 		if (is_string($file) or $file == '') {
@@ -151,7 +152,7 @@ class Cache implements ICache {
 			$entry = new CacheEntry($data);
 			self::$metaDataCache->set($key, clone $entry);
 			$getIdkey = $this->getNumericStorageId().'-getId-'.$data['path'];
-			self::$metaDataCache->set($getIdkey, $data['fileid']);
+			self::$metaDataCache->set($getIdkey, 0 + $data['fileid']);
 			$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$data['fileid'];
 			self::$metaDataCache->set($getPathByIdkey, $data['path']);
 		} else if (is_string($file) && isset($this->partial[$file])) {
@@ -197,7 +198,7 @@ class Cache implements ICache {
 				$getKey = $this->getNumericStorageId().'-get-'.$data['fileid'];
 				self::$metaDataCache->set($getKey, clone $entry);
 				$getIdkey = $this->getNumericStorageId().'-getId-'.$data['path'];
-				self::$metaDataCache->set($getIdkey, $data['fileid']);
+				self::$metaDataCache->set($getIdkey, 0 + $data['fileid']);
 				$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$data['fileid'];
 				self::$metaDataCache->set($getPathByIdkey, $data['path']);
 				return $entry;
@@ -411,15 +412,15 @@ class Cache implements ICache {
 		$sql = 'SELECT `fileid` FROM `*PREFIX*filecache` WHERE `storage` = ? AND `path_hash` = ?';
 		$result = $this->connection->executeQuery($sql, [$this->getNumericStorageId(), $pathHash]);
 		if ($row = $result->fetch()) {
-			$result = 0 + $row['fileid'];
+			$id = 0 + $row['fileid'];
+			$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
+			self::$metaDataCache->set($getPathByIdkey, $file);
 		} else {
-			$result = -1;
+			$id = -1;
 		}
+		self::$metaDataCache->set($key, $id);
 
-		self::$metaDataCache->set($key, $result);
-		$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
-		self::$metaDataCache->set($getPathByIdkey, $file);
-		return $result;
+		return $id;
 	}
 
 	/**
@@ -827,9 +828,8 @@ class Cache implements ICache {
 	 */
 	public function getPathById($id) {
 		$key = $this->getNumericStorageId().'-getPathById-'.$id;
-		$path = self::$metaDataCache->get($key);
-		if (is_string($path)) {
-			return $path;
+		if (self::$metaDataCache->hasKey($key)) { // use hasKey to also cache null
+			return self::$metaDataCache->get($key);
 		}
 
 		$sql = 'SELECT `path` FROM `*PREFIX*filecache` WHERE `fileid` = ? AND `storage` = ?';
@@ -838,15 +838,16 @@ class Cache implements ICache {
 			// Oracle stores empty strings as null...
 			if ($row['path'] === null) {
 				$path = '';
+			} else {
+				$path = $row['path'];
 			}
-			$path = $row['path'];
+			$getPathByIdkey = $this->getNumericStorageId().'-getId-'.$path;
+			self::$metaDataCache->set($getPathByIdkey, 0 + $id);
 		} else {
 			$path = null;
 		}
-
 		self::$metaDataCache->set($key, $path);
-		$getPathByIdkey = $this->getNumericStorageId().'-getId-'.$path;
-		self::$metaDataCache->set($getPathByIdkey, $id);
+
 		return $path;
 	}
 
