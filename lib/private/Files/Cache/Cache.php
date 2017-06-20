@@ -155,8 +155,10 @@ class Cache implements ICache {
 		//merge partial data
 		if (!$data and is_string($file)) {
 			if (isset($this->partial[$file])) {
-				$data = $this->partial[$file];
+				return $this->partial[$file]; // return here, no need cache partial entries
 			}
+			$entry = false;
+			self::$metaDataCache->set($key, $entry);
 		} else {
 			//fix types
 			$data['fileid'] = (int)$data['fileid'];
@@ -173,11 +175,6 @@ class Cache implements ICache {
 				$data['storage_mtime'] = $data['mtime'];
 			}
 			$data['permissions'] = (int)$data['permissions'];
-		}
-		if (!$data) {
-			$entry = false;
-			self::$metaDataCache->set($key, false);
-		} else {
 			$entry = new CacheEntry($data);
 			self::$metaDataCache->set($key, clone $entry);
 		}
