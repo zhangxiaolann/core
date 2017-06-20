@@ -61,6 +61,8 @@ class Propagator implements IPropagator {
 	public function propagateChange($internalPath, $time, $sizeDifference = 0) {
 		$storageId = (int)$this->storage->getStorageCache()->getNumericId();
 
+		Cache::$metaDataCache->clear();
+
 		$parents = $this->getParents($internalPath);
 
 		if ($this->inBatch) {

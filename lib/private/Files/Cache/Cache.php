@@ -82,7 +82,7 @@ class Cache implements ICache {
 	/**
 	 * @var CappedMemoryCache
 	 */
-	private static $metaDataCache = null;
+	public static $metaDataCache = null;
 
 	/**
 	 * @param \OC\Files\Storage\Storage|string $storage
@@ -124,8 +124,10 @@ class Cache implements ICache {
 	public function get($file) {
 		$key = $this->getNumericStorageId().'-get-'.$file;
 		$entry = self::$metaDataCache->get($key);
-		if ($entry !== null) { // also cache false
-			return $entry;
+		if ($entry instanceof ICacheEntry) { // also cache false
+			return clone $entry;
+		} else if ($entry !== null) {
+			return false;
 		}
 
 		if (is_string($file) or $file == '') {
@@ -174,10 +176,11 @@ class Cache implements ICache {
 		}
 		if (!$data) {
 			$entry = false;
+			self::$metaDataCache->set($key, false);
 		} else {
 			$entry = new CacheEntry($data);
+			self::$metaDataCache->set($key, clone $entry);
 		}
-		self::$metaDataCache->set($key, $entry);
 		return $entry;
 	}
 
@@ -461,13 +464,13 @@ class Cache implements ICache {
 	 * @param string $file
 	 */
 	public function remove($file) {
-		self::$metaDataCache->clear();
 		$entry = $this->get($file);
 		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?';
 		$this->connection->executeQuery($sql, [$entry['fileid']]);
 		if ($entry['mimetype'] === 'httpd/unix-directory') {
 			$this->removeChildren($entry);
 		}
+		self::$metaDataCache->clear();
 	}
 
 	/**
@@ -490,13 +493,13 @@ class Cache implements ICache {
 	 * @throws \OC\DatabaseException
 	 */
 	private function removeChildren($entry) {
-		self::$metaDataCache->clear();
 		$subFolders = $this->getSubFolders($entry);
 		foreach ($subFolders as $folder) {
 			$this->removeChildren($folder);
 		}
 		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `parent` = ?';
 		$this->connection->executeQuery($sql, [$entry['fileid']]);
+		self::$metaDataCache->clear();
 	}
 
 	/**
@@ -529,7 +532,6 @@ class Cache implements ICache {
 	 * @throws \Exception if the given storages have an invalid id
 	 */
 	public function moveFromCache(ICache $sourceCache, $sourcePath, $targetPath) {
-		self::$metaDataCache->clear();
 		if ($sourceCache instanceof Cache) {
 			// normalize source and target
 			$sourcePath = $this->normalize($sourcePath);
@@ -573,6 +575,7 @@ class Cache implements ICache {
 		} else {
 			$this->moveFromCacheFallback($sourceCache, $sourcePath, $targetPath);
 		}
+		self::$metaDataCache->clear();
 	}
 
 	/**
@@ -749,6 +752,7 @@ class Cache implements ICache {
 	 * @return int
 	 */
 	public function calculateFolderSize($path, $entry = null) {
+		self::$metaDataCache->clear();
 		$totalSize = 0;
 		if (is_null($entry) or !isset($entry['fileid'])) {
 			$entry = $this->get($path);
