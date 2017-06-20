@@ -35,6 +35,7 @@
 
 namespace OC\Files\Cache;
 
+use OC\Cache\CappedMemoryCache;
 use OCP\Files\Cache\ICache;
 use OCP\Files\Cache\ICacheEntry;
 use \OCP\Files\IMimeTypeLoader;
@@ -79,6 +80,11 @@ class Cache implements ICache {
 	protected $connection;
 
 	/**
+	 * @var CappedMemoryCache
+	 */
+	private static $metaDataCache = null;
+
+	/**
 	 * @param \OC\Files\Storage\Storage|string $storage
 	 */
 	public function __construct($storage) {
@@ -94,6 +100,10 @@ class Cache implements ICache {
 		$this->storageCache = new Storage($storage);
 		$this->mimetypeLoader = \OC::$server->getMimeTypeLoader();
 		$this->connection = \OC::$server->getDatabaseConnection();
+
+		if (self::$metaDataCache === null) {
+			self::$metaDataCache = new CappedMemoryCache();
+		}
 	}
 
 	/**
@@ -112,6 +122,12 @@ class Cache implements ICache {
 	 * @return ICacheEntry|false the cache entry as array of false if the file is not found in the cache
 	 */
 	public function get($file) {
+		$key = $this->getNumericStorageId().'-get-'.$file;
+		$entry = self::$metaDataCache->get($key);
+		if ($entry !== null) { // also cache false
+			return $entry;
+		}
+
 		if (is_string($file) or $file == '') {
 			// normalize file
 			$file = $this->normalize($file);
@@ -139,7 +155,6 @@ class Cache implements ICache {
 			if (isset($this->partial[$file])) {
 				$data = $this->partial[$file];
 			}
-			return $data;
 		} else {
 			//fix types
 			$data['fileid'] = (int)$data['fileid'];
@@ -156,8 +171,14 @@ class Cache implements ICache {
 				$data['storage_mtime'] = $data['mtime'];
 			}
 			$data['permissions'] = (int)$data['permissions'];
-			return new CacheEntry($data);
 		}
+		if (!$data) {
+			$entry = false;
+		} else {
+			$entry = new CacheEntry($data);
+		}
+		self::$metaDataCache->set($key, $entry);
+		return $entry;
 	}
 
 	/**
@@ -231,6 +252,8 @@ class Cache implements ICache {
 	 * @throws \RuntimeException
 	 */
 	public function insert($file, array $data) {
+		self::$metaDataCache->clear();
+
 		// normalize file
 		$file = $this->normalize($file);
 
@@ -283,7 +306,7 @@ class Cache implements ICache {
 	 * @param array $data [$key => $value] the metadata to update, only the fields provided in the array will be updated, non-provided values will remain unchanged
 	 */
 	public function update($id, array $data) {
-
+		self::$metaDataCache->clear();
 		if (isset($data['path'])) {
 			// normalize path
 			$data['path'] = $this->normalize($data['path']);
@@ -375,16 +398,26 @@ class Cache implements ICache {
 	public function getId($file) {
 		// normalize file
 		$file = $this->normalize($file);
+		$key = $this->getNumericStorageId().'-getId-'.$file;
+		$id = self::$metaDataCache->get($key);
+		if (is_numeric($id)) {
+			return $id;
+		}
 
 		$pathHash = md5($file);
 
 		$sql = 'SELECT `fileid` FROM `*PREFIX*filecache` WHERE `storage` = ? AND `path_hash` = ?';
 		$result = $this->connection->executeQuery($sql, [$this->getNumericStorageId(), $pathHash]);
 		if ($row = $result->fetch()) {
-			return $row['fileid'];
+			$result = 0 + $row['fileid'];
 		} else {
-			return -1;
+			$result = -1;
 		}
+		self::$metaDataCache->set($key, $result);
+		// TODO to cache reverse direction normalize path
+		//$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
+		//self::$metaDataCache->set($getPathByIdkey, $file);
+		return $result;
 	}
 
 	/**
@@ -428,6 +461,7 @@ class Cache implements ICache {
 	 * @param string $file
 	 */
 	public function remove($file) {
+		self::$metaDataCache->clear();
 		$entry = $this->get($file);
 		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?';
 		$this->connection->executeQuery($sql, [$entry['fileid']]);
@@ -456,6 +490,7 @@ class Cache implements ICache {
 	 * @throws \OC\DatabaseException
 	 */
 	private function removeChildren($entry) {
+		self::$metaDataCache->clear();
 		$subFolders = $this->getSubFolders($entry);
 		foreach ($subFolders as $folder) {
 			$this->removeChildren($folder);
@@ -494,6 +529,7 @@ class Cache implements ICache {
 	 * @throws \Exception if the given storages have an invalid id
 	 */
 	public function moveFromCache(ICache $sourceCache, $sourcePath, $targetPath) {
+		self::$metaDataCache->clear();
 		if ($sourceCache instanceof Cache) {
 			// normalize source and target
 			$sourcePath = $this->normalize($sourcePath);
@@ -543,6 +579,7 @@ class Cache implements ICache {
 	 * remove all entries for files that are stored on the storage from the cache
 	 */
 	public function clear() {
+		self::$metaDataCache->clear();
 		Storage::remove($this->storageId);
 	}
 
@@ -788,17 +825,28 @@ class Cache implements ICache {
 	 * @return string|null the path of the file (relative to the storage) or null if a file with the given id does not exists within this cache
 	 */
 	public function getPathById($id) {
+		$key = $this->getNumericStorageId().'-getPathById-'.$id;
+		$path = self::$metaDataCache->get($key);
+		if (is_string($path)) {
+			return $path;
+		}
+
 		$sql = 'SELECT `path` FROM `*PREFIX*filecache` WHERE `fileid` = ? AND `storage` = ?';
 		$result = $this->connection->executeQuery($sql, [$id, $this->getNumericStorageId()]);
 		if ($row = $result->fetch()) {
 			// Oracle stores empty strings as null...
 			if ($row['path'] === null) {
-				return '';
+				$result = '';
 			}
-			return $row['path'];
+			$result = $row['path'];
 		} else {
-			return null;
+			$result = null;
 		}
+		self::$metaDataCache->set($key, $result);
+		// TODO to cache reverse direction normalize path
+		//$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
+		//self::$metaDataCache->set($getPathByIdkey, $file);
+		return $result;
 	}
 
 	/**

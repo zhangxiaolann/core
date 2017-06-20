@@ -221,14 +221,6 @@ class OC_Util {
 			return $storage;
 		});
 
-		// install storage cache wrapper
-		\OC\Files\Filesystem::addStorageWrapper('oc_cache_index', function ($mountPoint, $storage) {
-			if (!$storage->instanceOfStorage('\OCA\Files_Sharing\SharedStorage')) {
-				return new \OC\Files\Storage\Wrapper\Cache(['storage' => $storage]);
-			}
-			return $storage;
-		});
-
 		OC_Hook::emit('OC_Filesystem', 'preSetup', ['user' => $user]);
 		\OC\Files\Filesystem::logWarningWhenAddingStorageWrapper(true);
 
