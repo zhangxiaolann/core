@@ -844,7 +844,7 @@ class Cache implements ICache {
 			$path = null;
 		}
 
-		self::$metaDataCache->set($key, $result);
+		self::$metaDataCache->set($key, $path);
 		$getPathByIdkey = $this->getNumericStorageId().'-getId-'.$path;
 		self::$metaDataCache->set($getPathByIdkey, $id);
 		return $path;
