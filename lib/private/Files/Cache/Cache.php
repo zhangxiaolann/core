@@ -226,7 +226,7 @@ class Cache implements ICache {
 		$data['storage'] = $this->storageId;
 		$data['mimetype'] = $this->mimetypeLoader->getMimetypeById($data['mimetype']);
 		$data['mimepart'] = $this->mimetypeLoader->getMimetypeById($data['mimepart']);
-		if ($data['storage_mtime'] == 0) {
+		if (isset($data['storage_mtime']) && $data['storage_mtime'] == 0) {
 			$data['storage_mtime'] = $data['mtime'];
 		}
 		$data['permissions'] = (int)$data['permissions'];
