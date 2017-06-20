@@ -102,7 +102,7 @@ class Cache implements ICache {
 		$this->connection = \OC::$server->getDatabaseConnection();
 
 		if (self::$metaDataCache === null) {
-			self::$metaDataCache = new CappedMemoryCache();
+			self::$metaDataCache = new CappedMemoryCache(2048);
 		}
 	}
 
@@ -177,6 +177,10 @@ class Cache implements ICache {
 			$data['permissions'] = (int)$data['permissions'];
 			$entry = new CacheEntry($data);
 			self::$metaDataCache->set($key, clone $entry);
+			$getIdkey = $this->getNumericStorageId().'-getId-'.$data['path'];
+			self::$metaDataCache->set($getIdkey, $data['fileid']);
+			$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$data['fileid'];
+			self::$metaDataCache->set($getPathByIdkey, $data['path']);
 		}
 		return $entry;
 	}
@@ -217,7 +221,16 @@ class Cache implements ICache {
 				$file['size'] = 0 + $file['size'];
 			}
 			return array_map(function (array $data) {
-				return new CacheEntry($data);
+				$entry = new CacheEntry($data);
+				$getKey = $this->getNumericStorageId().'-get-'.$data['path'];
+				self::$metaDataCache->set($getKey, clone $entry);
+				$getKey = $this->getNumericStorageId().'-get-'.$data['fileid'];
+				self::$metaDataCache->set($getKey, clone $entry);
+				$getIdkey = $this->getNumericStorageId().'-getId-'.$data['path'];
+				self::$metaDataCache->set($getIdkey, $data['fileid']);
+				$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$data['fileid'];
+				self::$metaDataCache->set($getPathByIdkey, $data['path']);
+				return $entry;
 			}, $files);
 		} else {
 			return [];
@@ -306,7 +319,6 @@ class Cache implements ICache {
 	 * @param array $data [$key => $value] the metadata to update, only the fields provided in the array will be updated, non-provided values will remain unchanged
 	 */
 	public function update($id, array $data) {
-		self::$metaDataCache->clear();
 		if (isset($data['path'])) {
 			// normalize path
 			$data['path'] = $this->normalize($data['path']);
@@ -332,6 +344,7 @@ class Cache implements ICache {
 			') AND `fileid` = ? ';
 		$this->connection->executeQuery($sql, $params);
 
+		self::$metaDataCache->clear();
 	}
 
 	/**
@@ -413,10 +426,10 @@ class Cache implements ICache {
 		} else {
 			$result = -1;
 		}
+
 		self::$metaDataCache->set($key, $result);
-		// TODO to cache reverse direction normalize path
-		//$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
-		//self::$metaDataCache->set($getPathByIdkey, $file);
+		$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
+		self::$metaDataCache->set($getPathByIdkey, $file);
 		return $result;
 	}
 
@@ -749,7 +762,6 @@ class Cache implements ICache {
 	 * @return int
 	 */
 	public function calculateFolderSize($path, $entry = null) {
-		self::$metaDataCache->clear();
 		$totalSize = 0;
 		if (is_null($entry) or !isset($entry['fileid'])) {
 			$entry = $this->get($path);
@@ -837,17 +849,17 @@ class Cache implements ICache {
 		if ($row = $result->fetch()) {
 			// Oracle stores empty strings as null...
 			if ($row['path'] === null) {
-				$result = '';
+				$path = '';
 			}
-			$result = $row['path'];
+			$path = $row['path'];
 		} else {
-			$result = null;
+			$path = null;
 		}
+
 		self::$metaDataCache->set($key, $result);
-		// TODO to cache reverse direction normalize path
-		//$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$id;
-		//self::$metaDataCache->set($getPathByIdkey, $file);
-		return $result;
+		$getPathByIdkey = $this->getNumericStorageId().'-getId-'.$path;
+		self::$metaDataCache->set($getPathByIdkey, $id);
+		return $path;
 	}
 
 	/**
