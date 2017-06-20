@@ -220,14 +220,16 @@ class Cache implements ICache {
 		$data['parent'] = 0 + $data['parent'];
 		$data['size'] = 0 + $data['size'];
 		$data['mtime'] = (int)$data['mtime'];
-		$data['storage_mtime'] = (int)$data['storage_mtime'];
 		$data['encryptedVersion'] = (int)$data['encrypted'];
 		$data['encrypted'] = (bool)$data['encrypted'];
 		$data['storage'] = $this->storageId;
 		$data['mimetype'] = $this->mimetypeLoader->getMimetypeById($data['mimetype']);
 		$data['mimepart'] = $this->mimetypeLoader->getMimetypeById($data['mimepart']);
-		if (isset($data['storage_mtime']) && $data['storage_mtime'] == 0) {
-			$data['storage_mtime'] = $data['mtime'];
+		if (isset($data['storage_mtime'])) {
+			$data['storage_mtime'] = (int)$data['storage_mtime'];
+			if ($data['storage_mtime'] === 0) {
+				$data['storage_mtime'] = $data['mtime'];
+			}
 		}
 		$data['permissions'] = (int)$data['permissions'];
 	}
