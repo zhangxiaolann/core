@@ -146,20 +146,7 @@ class Cache implements ICache {
 		$result = $this->connection->executeQuery($sql, $params);
 		$data = $result->fetch();
 
-		//FIXME hide this HACK in the next database layer, or just use doctrine and get rid of MDB2 and PDO
-		//PDO returns false, MDB2 returns null, oracle always uses MDB2, so convert null to false
-		if ($data === null) {
-			$data = false;
-		}
-
-		//merge partial data
-		if (!$data and is_string($file)) {
-			if (isset($this->partial[$file])) {
-				return $this->partial[$file]; // return here, no need cache partial entries
-			}
-			$entry = false;
-			self::$metaDataCache->set($key, $entry);
-		} else {
+		if ($data) {
 			$this->fixTypes($data);
 			$entry = new CacheEntry($data);
 			self::$metaDataCache->set($key, clone $entry);
@@ -167,6 +154,11 @@ class Cache implements ICache {
 			self::$metaDataCache->set($getIdkey, $data['fileid']);
 			$getPathByIdkey = $this->getNumericStorageId().'-getPathById-'.$data['fileid'];
 			self::$metaDataCache->set($getPathByIdkey, $data['path']);
+		} else if (is_string($file) && isset($this->partial[$file])) {
+				$entry = $this->partial[$file]; // return, no need cache partial entries
+		} else {
+			$entry = false;
+			self::$metaDataCache->set($key, $entry);
 		}
 		return $entry;
 	}
