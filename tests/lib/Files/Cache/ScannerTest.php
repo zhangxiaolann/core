@@ -8,6 +8,7 @@
 
 namespace Test\Files\Cache;
 
+use OC\Files\Cache\Cache;
 use OC\Files\Cache\CacheEntry;
 
 /**
@@ -282,6 +283,7 @@ class ScannerTest extends \Test\TestCase {
 		// delete the folder without removing the childs
 		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?';
 		\OC_DB::executeAudited($sql, [$oldFolderId]);
+		Cache::$metaDataCache->clear();
 
 		$cachedData = $this->cache->get('folder/bar.txt');
 		$this->assertEquals($oldFolderId, $cachedData['parent']);
@@ -306,6 +308,7 @@ class ScannerTest extends \Test\TestCase {
 		// delete the folder without removing the childs
 		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?';
 		\OC_DB::executeAudited($sql, [$oldFolderId]);
+		Cache::$metaDataCache->clear();
 
 		$cachedData = $this->cache->get('folder/bar.txt');
 		$this->assertEquals($oldFolderId, $cachedData['parent']);

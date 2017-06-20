@@ -61,8 +61,6 @@ class Propagator implements IPropagator {
 	public function propagateChange($internalPath, $time, $sizeDifference = 0) {
 		$storageId = (int)$this->storage->getStorageCache()->getNumericId();
 
-		Cache::$metaDataCache->clear();
-
 		$parents = $this->getParents($internalPath);
 
 		if ($this->inBatch) {
@@ -99,6 +97,8 @@ class Propagator implements IPropagator {
 		}
 
 		$builder->execute();
+
+		Cache::$metaDataCache->clear();
 	}
 
 	protected function getParents($path) {
@@ -183,6 +183,8 @@ class Propagator implements IPropagator {
 		$this->batch = [];
 
 		$this->connection->commit();
+		
+		Cache::$metaDataCache->clear();
 	}
 
 
