@@ -54,6 +54,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use OC\Repair\MoveAvatarOutsideHome;
 use OC\Repair\RepairDirectoryMimeType;
+use OC\Repair\RepairMismatchFileCachePath;
 
 class Repair implements IOutput{
 	/* @var IRepairStep[] */
@@ -126,6 +127,9 @@ class Repair implements IOutput{
 	 */
 	public static function getRepairSteps() {
 		return [
+			new RepairMismatchFileCachePath(\OC::$server->getDatabaseConnection()),
+			// beware: RepairMimeTypes must run AFTER RepairMismatchFileCachePath to
+			// avoid mis-repairing broken file cache entries
 			new RepairMimeTypes(\OC::$server->getConfig()),
 			new RepairDirectoryMimeType(\OC::$server->getDatabaseConnection(), \OC::$server->getMimeTypeLoader()),
 			new FillETags(\OC::$server->getDatabaseConnection()),
