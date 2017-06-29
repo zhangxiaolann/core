@@ -20,6 +20,8 @@
  */
 namespace Test\Repair;
 
+use OC\Files\Cache\Cache;
+
 /**
  * Test for fixing the userRoot and avatar permissions
  *
@@ -52,6 +54,7 @@ class AvatarPermissionsTest extends \Test\TestCase {
 	protected function cleanUpTables() {
 		$qb = $this->connection->getQueryBuilder();
 		$qb->delete('filecache')->execute();
+		Cache::$metaDataCache->clear();
 		$qb->delete('storages')->execute();
 	}
 
@@ -162,6 +165,7 @@ class AvatarPermissionsTest extends \Test\TestCase {
 			]);
 
 		$qb->execute();
+		Cache::$metaDataCache->clear();
 
 		return $qb->getLastInsertId();
 	}

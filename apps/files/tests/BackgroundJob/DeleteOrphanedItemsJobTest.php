@@ -22,6 +22,7 @@
 
 namespace OCA\Files\Tests\BackgroundJob;
 
+use OC\Files\Cache\Cache;
 use OCA\Files\BackgroundJob\DeleteOrphanedItems;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 
@@ -40,6 +41,15 @@ class DeleteOrphanedItemsJobTest extends \Test\TestCase {
 	protected function setup() {
 		parent::setUp();
 		$this->connection = \OC::$server->getDatabaseConnection();
+	}
+
+	protected function cleanup($fileId, $table){
+		$query = $this->connection->getQueryBuilder();
+		$query->delete('filecache')
+			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
+			->execute();
+		Cache::$metaDataCache->clear();
+		$this->cleanMapping($table);
 	}
 
 	protected function cleanMapping($table) {
@@ -100,11 +110,7 @@ class DeleteOrphanedItemsJobTest extends \Test\TestCase {
 		$mapping = $this->getMappings('systemtag_object_mapping');
 		$this->assertCount(1, $mapping);
 
-		$query = $this->connection->getQueryBuilder();
-		$query->delete('filecache')
-			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
-			->execute();
-		$this->cleanMapping('systemtag_object_mapping');
+		$this->cleanup($fileId, 'systemtag_object_mapping');
 	}
 
 	/**
@@ -149,11 +155,7 @@ class DeleteOrphanedItemsJobTest extends \Test\TestCase {
 		$mapping = $this->getMappings('vcategory_to_object');
 		$this->assertCount(1, $mapping);
 
-		$query = $this->connection->getQueryBuilder();
-		$query->delete('filecache')
-			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
-			->execute();
-		$this->cleanMapping('vcategory_to_object');
+		$this->cleanup($fileId, 'vcategory_to_object');
 	}
 
 	/**
@@ -200,11 +202,7 @@ class DeleteOrphanedItemsJobTest extends \Test\TestCase {
 		$mapping = $this->getMappings('comments');
 		$this->assertCount(1, $mapping);
 
-		$query = $this->connection->getQueryBuilder();
-		$query->delete('filecache')
-			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
-			->execute();
-		$this->cleanMapping('comments');
+		$this->cleanup($fileId, 'comments');
 	}
 
 	/**
@@ -249,11 +247,7 @@ class DeleteOrphanedItemsJobTest extends \Test\TestCase {
 		$mapping = $this->getMappings('comments_read_markers');
 		$this->assertCount(1, $mapping);
 
-		$query = $this->connection->getQueryBuilder();
-		$query->delete('filecache')
-			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
-			->execute();
-		$this->cleanMapping('comments_read_markers');
+		$this->cleanup($fileId, 'comments_read_markers');
 	}
 
 }

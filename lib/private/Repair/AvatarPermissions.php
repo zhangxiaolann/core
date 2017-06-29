@@ -21,6 +21,7 @@
 namespace OC\Repair;
 
 use Doctrine\DBAL\Platforms\OraclePlatform;
+use OC\Files\Cache\Cache;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\IRepairStep;
@@ -88,6 +89,7 @@ class AvatarPermissions implements IRepairStep {
 
 
 		$qb2->execute();
+		Cache::$metaDataCache->clear();
 	}
 
 	/**
@@ -109,6 +111,7 @@ class AvatarPermissions implements IRepairStep {
 			->setParameter('like', 'home::%');
 
 		$qb2->execute();
+		Cache::$metaDataCache->clear();
 	}
 
 }

@@ -21,6 +21,7 @@
 
 namespace OC\Files\Type;
 
+use OC\Files\Cache\Cache;
 use OCP\Files\IMimeTypeLoader;
 use OCP\IDBConnection;
 
@@ -171,6 +172,7 @@ class Loader implements IMimeTypeLoader {
 			->andWhere($update->expr()->like(
 				$update->createFunction('LOWER(`name`)'), $update->createNamedParameter($ext)
 			));
+		Cache::$metaDataCache->clear();
 		return $update->execute();
 	}
 

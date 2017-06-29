@@ -270,6 +270,7 @@ class Storage {
 		if (!is_null($numericId)) {
 			$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `storage` = ?';
 			\OC_DB::executeAudited($sql, [$numericId]);
+			Cache::$metaDataCache->clear();
 		}
 	}
 }

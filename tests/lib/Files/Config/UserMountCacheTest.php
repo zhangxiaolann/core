@@ -86,6 +86,7 @@ class UserMountCacheTest extends TestCase {
 				->where($builder->expr()->eq('fileid', new Literal($fileId)))
 				->execute();
 		}
+		\Cache::$metaDataCache->clear();
 	}
 
 	private function getStorage($storageId, $rootId) {

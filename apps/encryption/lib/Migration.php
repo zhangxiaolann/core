@@ -25,6 +25,7 @@
 namespace OCA\Encryption;
 
 
+use OC\Files\Cache\Cache;
 use OC\Files\View;
 use OCP\IConfig;
 use OCP\IDBConnection;
@@ -79,6 +80,7 @@ class Migration {
 				->where($query->expr()->eq('encrypted', $query->createParameter('encrypted')))
 				->setParameter('encrypted', 1);
 			$query->execute();
+			Cache::$metaDataCache->clear();
 		}
 	}
 
