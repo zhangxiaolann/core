@@ -25,6 +25,7 @@ use OCP\Migration\IOutput;
 use OCP\Migration\IRepairStep;
 use Doctrine\DBAL\Platforms\MySqlPlatform;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use Doctrine\DBAL\Platforms\OraclePlatform;
 
 /**
  * Repairs file cache entry which path do not match the parent-child relationship
@@ -87,7 +88,13 @@ class RepairMismatchFileCachePath implements IRepairStep {
 		if ($this->connection->getDatabasePlatform() instanceof MySqlPlatform) {
 			$concatFunction = $qb->createFunction("CONCAT(fcp.path, '/', fc.name)");
 		} else {
-			$concatFunction = $qb->createFunction("fcp.path || '/' || fc.name");
+			$concatFunction = $qb->createFunction("(fcp.`path` || '/' || fc.`name`)");
+		}
+
+		if ($this->connection->getDatabasePlatform() instanceof OraclePlatform) {
+			$emptyPathExpr = $qb->expr()->isNotNull('fcp.path');
+		} else {
+			$emptyPathExpr = $qb->expr()->neq('fcp.path', $qb->expr()->literal(''));
 		}
 
 		$qb
@@ -103,7 +110,7 @@ class RepairMismatchFileCachePath implements IRepairStep {
 					$qb->expr()->neq('fc.storage', 'fcp.storage')
 				)
 			)
-			->andWhere($qb->expr()->neq('fcp.path', $qb->expr()->literal('')))
+			->andWhere($emptyPathExpr)
 			// yes, this was observed in the wild...
 			->andWhere($qb->expr()->neq('fc.fileid', 'fcp.fileid'));
 	}
@@ -132,17 +139,10 @@ class RepairMismatchFileCachePath implements IRepairStep {
 		// be expected when following the parent-child relationship, basically
 		// concatenating the parent's "path" value with the name of the child
 		$qb = $this->connection->getQueryBuilder();
-		$qb->select(
-			'fc.storage',
-			'fc.fileid',
-			// if there is a less barbaric way to do this, please let me know...
-			// without this can't access parentpath as the prefixes aren't included
-			// in the result array
-			$qb->createFunction('fc.path as path'),
-			'fc.name',
-			$qb->createFunction('fcp.storage as parentstorage'),
-			$qb->createFunction('fcp.path as parentpath')
-		);
+		$qb->select('fc.storage', 'fc.fileid', 'fc.name')
+			->selectAlias('fc.path', 'path')
+			->selectAlias('fcp.storage', 'parentstorage')
+			->selectAlias('fcp.path', 'parentpath');
 		$this->addQueryConditions($qb);
 		$qb->setMaxResults(self::CHUNK_SIZE);
 

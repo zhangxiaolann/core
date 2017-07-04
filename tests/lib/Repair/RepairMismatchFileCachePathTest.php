@@ -54,7 +54,7 @@ class RepairMismatchFileCachePathTest extends TestCase {
 				'parent' => $qb->createNamedParameter($parent),
 			]);
 		$qb->execute();
-		return $this->connection->lastInsertId('filecache');
+		return $this->connection->lastInsertId('*PREFIX*filecache');
 	}
 
 	private function getFileCacheEntry($fileId) {
@@ -121,10 +121,13 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		 */
 
 		// source storage entries
-		$baseId1 = $this->createFileCacheEntry($sourceStorageId, 'files');
+		$rootId1 = $this->createFileCacheEntry($sourceStorageId, '');
+		$baseId1 = $this->createFileCacheEntry($sourceStorageId, 'files', $rootId1);
 		if ($sourceStorageId !== $targetStorageId) {
-			$baseId2 = $this->createFileCacheEntry($targetStorageId, 'files');
+			$rootId2 = $this->createFileCacheEntry($targetStorageId, '');
+			$baseId2 = $this->createFileCacheEntry($targetStorageId, 'files', $rootId2);
 		} else {
+			$rootId2 = $rootId1;
 			$baseId2 = $baseId1;
 		}
 		$sourceId = $this->createFileCacheEntry($sourceStorageId, 'files/source', $baseId1);
@@ -206,6 +209,20 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
 		$this->assertEquals('files/source/all_your_zombies', $entry['path']);
 		$this->assertEquals(md5('files/source/all_your_zombies'), $entry['path_hash']);
+
+		// root entries left alone
+		$entry = $this->getFileCacheEntry($rootId1);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
+
+		$entry = $this->getFileCacheEntry($rootId2);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$targetStorageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
+
 	}
 }
 
