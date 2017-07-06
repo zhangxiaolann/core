@@ -246,9 +246,9 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		// make it reference its own child
 		$this->setFileCacheEntryParent($refChild1Id, $refChild1ChildId);
 
-		$refChild2ChildId = $this->createFileCacheEntry($storageId, 'files/ref_child2/child', $baseId1);
+		$refChild2Id = $this->createFileCacheEntry($storageId, 'files/ref_child2', $baseId1);
+		$refChild2ChildId = $this->createFileCacheEntry($storageId, 'files/ref_child2/child', $refChild2Id);
 		$refChild2ChildChildId = $this->createFileCacheEntry($storageId, 'files/ref_child2/child/child', $refChild2ChildId);
-		$refChild2Id = $this->createFileCacheEntry($storageId, 'files/ref_child2', $refChild2ChildChildId);
 		// make it reference its own sub child
 		$this->setFileCacheEntryParent($refChild2Id, $refChild2ChildChildId);
 
@@ -296,6 +296,48 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		$this->assertEquals((string)$storageId, $entry['storage']);
 		$this->assertEquals('files/ref_child2/child/child', $entry['path']);
 		$this->assertEquals(md5('files/ref_child2/child/child'), $entry['path_hash']);
+
+		// root entry left alone
+		$entry = $this->getFileCacheEntry($rootId1);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
+	}
+
+	/**
+	 * Test repair wrong parent id
+	 */
+	public function testRepairParentIdPointingNowhere() {
+		/**
+		 * Wrong parent id
+		 *     - wrongparentroot
+		 *     - files/wrongparent
+		 */
+		$storageId = 1;
+		$rootId1 = $this->createFileCacheEntry($storageId, '');
+		$baseId1 = $this->createFileCacheEntry($storageId, 'files', $rootId1);
+
+		$nonExistingParentId = $baseId1 + 100;
+		$wrongParentRootId = $this->createFileCacheEntry($storageId, 'wrongparentroot', $nonExistingParentId);
+		$wrongParentId = $this->createFileCacheEntry($storageId, 'files/wrongparent', $nonExistingParentId);
+
+		$outputMock = $this->createMock(IOutput::class);
+		$this->repair->run($outputMock);
+
+		// wrong parent root reparented to actual root
+		$entry = $this->getFileCacheEntry($wrongParentRootId);
+		$this->assertEquals($rootId1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('wrongparentroot', $entry['path']);
+		$this->assertEquals(md5('wrongparentroot'), $entry['path_hash']);
+
+		// wrong parent subdir reparented to "files"
+		$entry = $this->getFileCacheEntry($wrongParentId);
+		$this->assertEquals($baseId1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/wrongparent', $entry['path']);
+		$this->assertEquals(md5('files/wrongparent'), $entry['path_hash']);
 
 		// root entry left alone
 		$entry = $this->getFileCacheEntry($rootId1);

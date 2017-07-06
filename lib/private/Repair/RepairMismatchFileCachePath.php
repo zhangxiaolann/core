@@ -56,6 +56,7 @@ class RepairMismatchFileCachePath implements IRepairStep {
 	 * @param string $wrongPath wrong path of the entry to fix
 	 * @param int $correctStorageNumericId numeric idea of the correct storage
 	 * @param string $correctPath value to which to set the path of the entry 
+	 * @return bool true for success
 	 */
 	private function fixEntryPath(IOutput $out, $fileId, $wrongPath, $correctStorageNumericId, $correctPath) {
 		$this->connection->beginTransaction();
@@ -141,6 +142,8 @@ class RepairMismatchFileCachePath implements IRepairStep {
 		$qb = $this->connection->getQueryBuilder();
 		$qb->select('fc.storage', 'fc.fileid', 'fc.name')
 			->selectAlias('fc.path', 'path')
+			->selectAlias('fc.storage', 'storage')
+			->selectAlias('fc.parent', 'wrongparentid')
 			->selectAlias('fcp.storage', 'parentstorage')
 			->selectAlias('fcp.path', 'parentpath');
 		$this->addQueryConditions($qb);
@@ -155,13 +158,31 @@ class RepairMismatchFileCachePath implements IRepairStep {
 
 			$lastResultsCount = 0;
 			foreach ($rows as $row) {
-				$this->fixEntryPath(
-					$out,
-					$row['fileid'],
-					$row['path'],
-					$row['parentstorage'],
-					$row['parentpath'] . '/' . $row['name']
-				);
+				$wrongPath = $row['path'];
+				$correctPath = $row['parentpath'] . '/' . $row['name'];
+				// make sure the target is on a different subtree
+				if (substr($correctPath, 0, strlen($wrongPath)) === $wrongPath) {
+					// the path based parent entry is referencing one of its own children, skipping
+					// fix the entry's parent id instead
+					// note: fixEntryParent cannot fail to find the parent entry by path
+					// here because the reason we reached this code is because we already
+					// found it
+					$this->fixEntryParent(
+						$out,
+						$row['storage'],
+						$row['fileid'],
+						$row['path'],
+						$row['wrongparentid']
+					);
+				} else {
+					$this->fixEntryPath(
+						$out,
+						$row['fileid'],
+						$wrongPath,
+						$row['parentstorage'],
+						$correctPath
+					);
+				}
 				$lastResultsCount++;
 			}
 
@@ -192,6 +213,9 @@ class RepairMismatchFileCachePath implements IRepairStep {
 		$this->connection->beginTransaction();
 
 		$parentPath = dirname($path);
+		if ($parentPath === '.') {
+			$parentPath = '';
+		}
 
 		// find the correct parent
 		$qb = $this->connection->getQueryBuilder();
