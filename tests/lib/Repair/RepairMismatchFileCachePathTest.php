@@ -101,7 +101,7 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		 *     - files/source/to_move (not created as we simulate that it was already moved)
 		 *     - files/source/to_move/content_to_update (bogus entry to fix)
 		 *     - files/source/to_move/content_to_update/sub (bogus subentry to fix)
-		 *     - files/source/all_your_zombies (parent=fileid must be reparented)
+		 *     - files/source/do_not_touch (regular entry outside of the repair scope)
 		 *
 		 * target storage:
 		 *     - files/
@@ -113,10 +113,6 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		 *     - files/target/moved_renamed/content_to_update (will be overwritten)
 		 *     - files/target/moved_renamed/content_to_update/sub (will be overwritten)
 		 *     - files/target/moved_renamed/content_to_update/unrelated (will be reparented)
-		 *
-		 * other:
-		 *     - files/source/do_not_touch (regular entry outside of the repair scope)
-		 *     - files/orphaned/leave_me_alone (unrepairable unrelated orphaned entry)
 		 *
 		 */
 
@@ -150,17 +146,7 @@ class RepairMismatchFileCachePathTest extends TestCase {
 			$existingTargetUnrelatedId = $this->createFileCacheEntry($targetStorageId, 'files/' . $targetDir . '/moved_renamed/content_to_update/unrelated', $existingTargetId);
 		}
 
-		$nonExistingParentId = $targetId + 100;
-		$orphanedId = $this->createFileCacheEntry($targetStorageId, 'files/' . $targetDir . '/orphaned/leave_me_alone', $nonExistingParentId);
-
 		$doNotTouchId = $this->createFileCacheEntry($sourceStorageId, 'files/source/do_not_touch', $sourceId);
-
-		$superBogusId = $this->createFileCacheEntry($sourceStorageId, 'files/source/all_your_zombies', $sourceId);
-		$qb = $this->connection->getQueryBuilder();
-		$qb->update('filecache')
-			->set('parent', 'fileid')
-			->where($qb->expr()->eq('fileid', $qb->createNamedParameter($superBogusId)));
-		$qb->execute();
 
 		$outputMock = $this->createMock(IOutput::class);
 		$this->repair->run($outputMock);
@@ -189,27 +175,6 @@ class RepairMismatchFileCachePathTest extends TestCase {
 			$this->assertEquals(md5('files/' . $targetDir . '/moved_renamed/content_to_update/unrelated'), $entry['path_hash']);
 		}
 
-		// orphaned entry left untouched
-		$entry = $this->getFileCacheEntry($orphanedId);
-		$this->assertEquals($nonExistingParentId, $entry['parent']);
-		$this->assertEquals((string)$targetStorageId, $entry['storage']);
-		$this->assertEquals('files/' . $targetDir . '/orphaned/leave_me_alone', $entry['path']);
-		$this->assertEquals(md5('files/' . $targetDir . '/orphaned/leave_me_alone'), $entry['path_hash']);
-
-		// "do not touch" entry left untouched
-		$entry = $this->getFileCacheEntry($doNotTouchId);
-		$this->assertEquals($sourceId, $entry['parent']);
-		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
-		$this->assertEquals('files/source/do_not_touch', $entry['path']);
-		$this->assertEquals(md5('files/source/do_not_touch'), $entry['path_hash']);
-
-		// "super bogus" entry reparented
-		$entry = $this->getFileCacheEntry($superBogusId);
-		$this->assertEquals($sourceId, $entry['parent']);
-		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
-		$this->assertEquals('files/source/all_your_zombies', $entry['path']);
-		$this->assertEquals(md5('files/source/all_your_zombies'), $entry['path_hash']);
-
 		// root entries left alone
 		$entry = $this->getFileCacheEntry($rootId1);
 		$this->assertEquals(-1, $entry['parent']);
@@ -223,6 +188,82 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		$this->assertEquals('', $entry['path']);
 		$this->assertEquals(md5(''), $entry['path_hash']);
 
+		// "do not touch" entry left untouched
+		$entry = $this->getFileCacheEntry($doNotTouchId);
+		$this->assertEquals($sourceId, $entry['parent']);
+		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
+		$this->assertEquals('files/source/do_not_touch', $entry['path']);
+		$this->assertEquals(md5('files/source/do_not_touch'), $entry['path_hash']);
+
+		// root entry left alone
+		$entry = $this->getFileCacheEntry($rootId1);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$sourceStorageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
+	}
+
+	/**
+	 * Test repair self referencing entries
+	 */
+	public function testRepairSelfReferencing() {
+		/**
+		 *     - files/all_your_zombies (parent=fileid must be reparented)
+		 */
+		$storageId = 1;
+		$rootId1 = $this->createFileCacheEntry($storageId, '');
+		$baseId1 = $this->createFileCacheEntry($storageId, 'files', $rootId1);
+
+		$selfRefId = $this->createFileCacheEntry($storageId, 'files/all_your_zombies', $baseId1);
+		$qb = $this->connection->getQueryBuilder();
+		$qb->update('filecache')
+			->set('parent', 'fileid')
+			->where($qb->expr()->eq('fileid', $qb->createNamedParameter($selfRefId)));
+		$qb->execute();
+
+		$outputMock = $this->createMock(IOutput::class);
+		$this->repair->run($outputMock);
+
+		// self-referencing updated
+		$entry = $this->getFileCacheEntry($selfRefId);
+		$this->assertEquals($baseId1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/all_your_zombies', $entry['path']);
+		$this->assertEquals(md5('files/all_your_zombies'), $entry['path_hash']);
+
+	}
+
+	/**
+	 * Test repair does not repair some entries
+	 */
+	public function testRepairUntouched() {
+		/**
+		 * other:
+		 *     - files/orphaned/leave_me_alone (unrepairable unrelated orphaned entry)
+		 */
+		$storageId = 1;
+		$rootId1 = $this->createFileCacheEntry($storageId, '');
+		$baseId1 = $this->createFileCacheEntry($storageId, 'files', $rootId1);
+
+		$nonExistingParentId = $baseId1 + 100;
+		$orphanedId = $this->createFileCacheEntry($storageId, 'files/orphaned/leave_me_alone', $nonExistingParentId);
+
+		$outputMock = $this->createMock(IOutput::class);
+		$this->repair->run($outputMock);
+
+		// orphaned entry left untouched
+		$entry = $this->getFileCacheEntry($orphanedId);
+		$this->assertEquals($nonExistingParentId, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/orphaned/leave_me_alone', $entry['path']);
+		$this->assertEquals(md5('files/orphaned/leave_me_alone'), $entry['path_hash']);
+
+		// root entry left alone
+		$entry = $this->getFileCacheEntry($rootId1);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
 	}
 }
 
