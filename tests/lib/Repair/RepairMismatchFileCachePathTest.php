@@ -68,6 +68,20 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		return $result;
 	}
 
+	/**
+	 * Sets the parent of the given file id to the given parent id
+	 *
+	 * @param int $fileId file id of the entry to adjust
+	 * @param int $parentId parent id to set to
+	 */
+	private function setFileCacheEntryParent($fileId, $parentId) {
+		$qb = $this->connection->getQueryBuilder();
+		$qb->update('filecache')
+			->set('parent', $qb->createNamedParameter($parentId))
+			->where($qb->expr()->eq('fileid', $qb->createNamedParameter($fileId)));
+		$qb->execute();
+	}
+
 	public function repairCasesProvider() {
 		return [
 			// same storage, different target dir
@@ -208,18 +222,35 @@ class RepairMismatchFileCachePathTest extends TestCase {
 	 */
 	public function testRepairSelfReferencing() {
 		/**
+		 * Self-referencing:
 		 *     - files/all_your_zombies (parent=fileid must be reparented)
+		 *
+		 * Referencing child one level:
+		 *     - files/ref_child1 (parent=fileid of the child)
+		 *     - files/ref_child1/child (parent=fileid of the child)
+		 *
+		 * Referencing child two levels:
+		 *     - files/ref_child2/ (parent=fileid of the child's child)
+		 *     - files/ref_child2/child
+		 *     - files/ref_child2/child2
 		 */
 		$storageId = 1;
 		$rootId1 = $this->createFileCacheEntry($storageId, '');
 		$baseId1 = $this->createFileCacheEntry($storageId, 'files', $rootId1);
 
 		$selfRefId = $this->createFileCacheEntry($storageId, 'files/all_your_zombies', $baseId1);
-		$qb = $this->connection->getQueryBuilder();
-		$qb->update('filecache')
-			->set('parent', 'fileid')
-			->where($qb->expr()->eq('fileid', $qb->createNamedParameter($selfRefId)));
-		$qb->execute();
+		$this->setFileCacheEntryParent($selfRefId, $selfRefId);
+
+		$refChild1Id = $this->createFileCacheEntry($storageId, 'files/ref_child1', $baseId1);
+		$refChild1ChildId = $this->createFileCacheEntry($storageId, 'files/ref_child1/child', $refChild1Id);
+		// make it reference its own child
+		$this->setFileCacheEntryParent($refChild1Id, $refChild1ChildId);
+
+		$refChild2ChildId = $this->createFileCacheEntry($storageId, 'files/ref_child2/child', $baseId1);
+		$refChild2ChildChildId = $this->createFileCacheEntry($storageId, 'files/ref_child2/child/child', $refChild2ChildId);
+		$refChild2Id = $this->createFileCacheEntry($storageId, 'files/ref_child2', $refChild2ChildChildId);
+		// make it reference its own sub child
+		$this->setFileCacheEntryParent($refChild2Id, $refChild2ChildChildId);
 
 		$outputMock = $this->createMock(IOutput::class);
 		$this->repair->run($outputMock);
@@ -231,6 +262,47 @@ class RepairMismatchFileCachePathTest extends TestCase {
 		$this->assertEquals('files/all_your_zombies', $entry['path']);
 		$this->assertEquals(md5('files/all_your_zombies'), $entry['path_hash']);
 
+		// ref child 1 case was reparented to "files"
+		$entry = $this->getFileCacheEntry($refChild1Id);
+		$this->assertEquals($baseId1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/ref_child1', $entry['path']);
+		$this->assertEquals(md5('files/ref_child1'), $entry['path_hash']);
+
+		// ref child 1 child left alone
+		$entry = $this->getFileCacheEntry($refChild1ChildId);
+		$this->assertEquals($refChild1Id, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/ref_child1/child', $entry['path']);
+		$this->assertEquals(md5('files/ref_child1/child'), $entry['path_hash']);
+
+		// ref child 2 case was reparented to "files"
+		$entry = $this->getFileCacheEntry($refChild2Id);
+		$this->assertEquals($baseId1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/ref_child2', $entry['path']);
+		$this->assertEquals(md5('files/ref_child2'), $entry['path_hash']);
+
+		// ref child 2 child left alone
+		$entry = $this->getFileCacheEntry($refChild2ChildId);
+		$this->assertEquals($refChild2Id, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/ref_child2/child', $entry['path']);
+		$this->assertEquals(md5('files/ref_child2/child'), $entry['path_hash']);
+
+		// ref child 2 child child left alone
+		$entry = $this->getFileCacheEntry($refChild2ChildChildId);
+		$this->assertEquals($refChild2ChildId, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('files/ref_child2/child/child', $entry['path']);
+		$this->assertEquals(md5('files/ref_child2/child/child'), $entry['path_hash']);
+
+		// root entry left alone
+		$entry = $this->getFileCacheEntry($rootId1);
+		$this->assertEquals(-1, $entry['parent']);
+		$this->assertEquals((string)$storageId, $entry['storage']);
+		$this->assertEquals('', $entry['path']);
+		$this->assertEquals(md5(''), $entry['path_hash']);
 	}
 
 	/**
