@@ -142,7 +142,6 @@ class RepairMismatchFileCachePath implements IRepairStep {
 		$qb = $this->connection->getQueryBuilder();
 		$qb->select('fc.storage', 'fc.fileid', 'fc.name')
 			->selectAlias('fc.path', 'path')
-			->selectAlias('fc.storage', 'storage')
 			->selectAlias('fc.parent', 'wrongparentid')
 			->selectAlias('fcp.storage', 'parentstorage')
 			->selectAlias('fcp.path', 'parentpath');
