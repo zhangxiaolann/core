@@ -127,7 +127,7 @@ class Repair implements IOutput{
 	 */
 	public static function getRepairSteps() {
 		return [
-			new RepairMismatchFileCachePath(\OC::$server->getDatabaseConnection()),
+			new RepairMismatchFileCachePath(\OC::$server->getDatabaseConnection(), \OC::$server->getMimeTypeLoader()),
 			// beware: RepairMimeTypes must run AFTER RepairMismatchFileCachePath to
 			// avoid mis-repairing broken file cache entries
 			new RepairMimeTypes(\OC::$server->getConfig()),
