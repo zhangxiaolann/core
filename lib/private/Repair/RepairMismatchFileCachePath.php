@@ -34,7 +34,7 @@ use OCP\IDBConnection;
  */
 class RepairMismatchFileCachePath implements IRepairStep {
 
-	const CHUNK_SIZE = 200;
+	const CHUNK_SIZE = 10000;
 
 	/** @var IDBConnection */
 	protected $connection;
@@ -71,7 +71,6 @@ class RepairMismatchFileCachePath implements IRepairStep {
 	 * @return bool true for success
 	 */
 	private function fixEntryPath(IOutput $out, $fileId, $wrongPath, $correctStorageNumericId, $correctPath) {
-		$this->connection->beginTransaction();
 		// delete target if exists
 		$qb = $this->connection->getQueryBuilder();
 		$qb->delete('filecache')
@@ -92,8 +91,6 @@ class RepairMismatchFileCachePath implements IRepairStep {
 			$text = " (replaced an existing entry)";
 		}
 		$out->advance(1, $text);
-
-		$this->connection->commit();
 	}
 
 	private function addQueryConditions($qb) {
@@ -167,6 +164,7 @@ class RepairMismatchFileCachePath implements IRepairStep {
 			$rows = $results->fetchAll();
 			$results->closeCursor();
 
+			$this->connection->beginTransaction();
 			$lastResultsCount = 0;
 			foreach ($rows as $row) {
 				$wrongPath = $row['path'];
@@ -197,6 +195,7 @@ class RepairMismatchFileCachePath implements IRepairStep {
 				}
 				$lastResultsCount++;
 			}
+			$this->connection->commit();
 
 			$totalResultsCount += $lastResultsCount;
 
