@@ -59,3 +59,15 @@ API::register('put', '/apps/testing/api/v1/lockprovisioning/{type}/{user}', [$lo
 API::register('delete', '/apps/testing/api/v1/lockprovisioning/{type}/{user}', [$locking, 'releaseLock'], 'files_lockprovisioning', API::ADMIN_AUTH);
 API::register('delete', '/apps/testing/api/v1/lockprovisioning/{type}', [$locking, 'releaseAll'], 'files_lockprovisioning', API::ADMIN_AUTH);
 API::register('delete', '/apps/testing/api/v1/lockprovisioning', [$locking, 'releaseAll'], 'files_lockprovisioning', API::ADMIN_AUTH);
+
+$bigFileID = new BigFileID(
+	\OC::$server->getDatabaseConnection()
+);
+
+API::register(
+	'post',
+	'/apps/testing/api/v1/app/{appid}/{configkey}',
+	[$config, 'setAppValue'],
+	'testing',
+	API::ADMIN_AUTH
+);
