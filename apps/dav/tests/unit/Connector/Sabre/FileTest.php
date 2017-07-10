@@ -399,6 +399,22 @@ class FileTest extends TestCase {
 					'HTTP_X_OC_MTIME' => -34.43,
 					'expected result' => ($this->supportsNegativeMtime() ? -34 : 0)
 			],
+			"long int" => [ 
+					'HTTP_X_OC_MTIME' => PHP_INT_MAX,
+					'expected result' => PHP_INT_MAX 
+			],
+			"too long int" => [ 
+					'HTTP_X_OC_MTIME' => PHP_INT_MAX + 1,
+					'expected result' => PHP_INT_MAX 
+			],
+			"long negative int" => [ 
+					'HTTP_X_OC_MTIME' => PHP_INT_MAX * - 1,
+					'expected result' => ($this->supportsNegativeMtime() ? (PHP_INT_MAX * - 1) : 0)
+			],
+			"too long negative int" => [ 
+					'HTTP_X_OC_MTIME' => (PHP_INT_MAX * - 1) - 1,
+					'expected result' => ($this->supportsNegativeMtime() ? (PHP_INT_MAX * - 1) : 0)
+			],
 		];
 	}
 
