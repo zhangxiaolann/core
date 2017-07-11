@@ -66,8 +66,8 @@ $bigFileID = new BigFileID(
 
 API::register(
 	'post',
-	'/apps/testing/api/v1/app/{appid}/{configkey}',
-	[$config, 'setAppValue'],
+	'/apps/testing/api/v1/increasefileid',
+	[$bigFileID, 'increaseFileIDsBeyondMax32bits'],
 	'testing',
 	API::ADMIN_AUTH
 );
