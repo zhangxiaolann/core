@@ -22,6 +22,7 @@
 namespace OCA\Testing\AppInfo;
 
 use OCA\Testing\Config;
+use OCA\Testing\BigFileID;
 use OCA\Testing\Locking\Provisioning;
 use OCP\API;
 
