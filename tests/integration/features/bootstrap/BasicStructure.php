@@ -399,7 +399,7 @@ trait BasicStructure {
 	 * @BeforeSuite
 	 */
 	public static function useBigFileIDs(){
-		$fullUrl = "http://localhost:8080/ocs/v1.php/apps/testing/api/v1/increasefileid";
+		$fullUrl = getenv('TEST_SERVER_URL') . "/v1.php/apps/testing/api/v1/increasefileid";
 		$client = new Client();
 		$options = [];
 		$options['auth'] = ['admin','admin'];
