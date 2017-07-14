@@ -52,4 +52,28 @@ class PostgreSqlMigrator extends Migrator {
 
 		return $schemaDiff;
 	}
+	
+	/**
+	 * @param \Doctrine\DBAL\Schema\Schema $targetSchema
+	 * @param \Doctrine\DBAL\Connection $connection
+	 */
+	protected function applySchema(Schema $targetSchema, \Doctrine\DBAL\Connection $connection = null) {
+		if (is_null($connection)) {
+			$connection = $this->connection;
+		}
+
+		$schemaDiff = $this->getDiff($targetSchema, $connection);
+
+		$connection->beginTransaction();
+		$sqls = $schemaDiff->toSql($connection->getDatabasePlatform());
+		$step = 0;
+		foreach ($sqls as $sql) {
+			$this->emit($sql, $step++, count($sqls));
+			// BIGSERIAL could not be used in statements altering column type
+			// see https://github.com/owncloud/core/pull/28364#issuecomment-315006853
+			$sql = preg_replace('|(ALTER [^s]+ TYPE )(BIGSERIAL)|i', '\1BIGINT', $sql);
+			$connection->query($sql);
+		}
+		$connection->commit();
+	}
 }
