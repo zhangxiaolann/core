@@ -71,7 +71,21 @@ class PostgreSqlMigrator extends Migrator {
 			$this->emit($sql, $step++, count($sqls));
 			// BIGSERIAL could not be used in statements altering column type
 			// see https://github.com/owncloud/core/pull/28364#issuecomment-315006853
-			$sql = preg_replace('|(ALTER [^s]+ TYPE )(BIGSERIAL)|i', '\1BIGINT', $sql);
+			if (preg_match('|(ALTER TABLE\s+)(\S+)(\s+ALTER\s+)(\S+)(\s+TYPE\s+)(BIGSERIAL)|i', $sql, $matches)){
+				$alterTable = $matches[1];
+				$tableName = $matches[2];
+				$alterColumn = $matches[3];
+				$columnName = $matches[4];
+				$typeKeyword = $matches[5];
+				
+				$alterSql = $alterTable . $tableName . $alterColumn . $columnName . $typeKeyword . 'BIGINT;';
+				$connection->query($alterSql);
+				
+				$sequenceName = $tableName . '_' . $columnName . '_seq';
+				$sequenceSql = $alterTable . $tableName . $alterColumn . $columnName . ' SET DEFAULT nextval(\'' . $sequenceName . '\');';
+				$connection->query($sequenceSql);
+				continue;
+			}
 			$connection->query($sql);
 		}
 		$connection->commit();
